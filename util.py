@@ -30,6 +30,12 @@ def save_model(autoencoder, modelName):
         f.write(str(config))
         f.close()
 
+def load_model(model):
+    with open(model+".config", "a+") as f:
+        config = f.read()
+
+    return (torch.load(model), config)
+
 def save_progress_image(autoencoder, progress_images, epoch):
     if not torch.cuda.is_available():
         segmentations, reconstructions = autoencoder(progress_images)

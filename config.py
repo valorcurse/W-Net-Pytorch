@@ -8,7 +8,7 @@ class Config():
         self.verbose_testing = False
 
         self.k = 64 # Number of classes
-        self.num_epochs = 3#250 for real
+        self.num_epochs = 250#250 for real
         self.data_dir = "./datasets/BSDS300/" # Directory of images
         self.showdata = False # Debug the data augmentation by showing the data we're training on.
 

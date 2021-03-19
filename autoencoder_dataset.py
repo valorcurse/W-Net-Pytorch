@@ -25,7 +25,8 @@ class AutoencoderDataset(Dataset):
     def __init__(self, mode, input_transforms):
         self.mode = mode
         self.data_path  = os.path.join(config.data_dir, mode)
-        self.images_dir = os.path.join(self.data_path, 'images')
+        # self.images_dir = os.path.join(self.data_path, 'images')
+        self.images_dir = self.data_path
         self.image_list = self.get_image_list()
         self.transforms = input_transforms
 

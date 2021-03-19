@@ -23,12 +23,19 @@ from model import WNet
 from autoencoder_dataset import AutoencoderDataset
 from soft_n_cut_loss import soft_n_cut_loss
 
+import argparse
+parser = argparse.ArgumentParser(description='PyTorch Unsupervised Segmentation with WNet')
+parser.add_argument('--load', metavar='of', default=None, type=str, help='model')
+
 def main():
+    args = parser.parse_args()
+
     print("PyTorch Version: ",torch.__version__)
     if torch.cuda.is_available():
         print("Cuda is available. Using GPU")
 
     config = Config()
+
 
     ###################################
     # Image loading and preprocessing #
@@ -62,17 +69,23 @@ def main():
     ###################################
     #          Model Setup            #
     ###################################
+    if args.load:
+        autoencoder, _ = util.load_model(args.load)
+        modelName = os.path.basename(args.load)
 
-    autoencoder = WNet()
+    else:
+        autoencoder = WNet()
+        # Use the current time to save the model at end of each epoch
+        modelName = str(datetime.now())
+
     if torch.cuda.is_available():
         autoencoder = autoencoder.cuda()
     optimizer = torch.optim.Adam(autoencoder.parameters())
-    if config.debug:
-        print(autoencoder)
+    # if config.debug:
+    #     print(autoencoder)
     util.enumerate_params([autoencoder])
 
-    # Use the current time to save the model at end of each epoch
-    modelName = str(datetime.now())
+
 
 
 
@@ -81,8 +94,8 @@ def main():
     ###################################
 
     def reconstruction_loss(x, x_prime):
-    	binary_cross_entropy = F.binary_cross_entropy(x_prime, x, reduction='sum')
-    	return binary_cross_entropy
+        binary_cross_entropy = F.binary_cross_entropy(x_prime, x, reduction='sum')
+        return binary_cross_entropy
 
 
     ###################################
@@ -96,6 +109,9 @@ def main():
     for epoch in range(config.num_epochs):
         running_loss = 0.0
         for i, [inputs, outputs] in enumerate(train_dataloader, 0):
+
+            if i == 5:
+                pass
 
             if config.showdata:
                 print(inputs.shape)
@@ -126,15 +142,17 @@ def main():
                 print(i)
 
             # print statistics
-            running_loss += loss.item()
+            # running_loss += loss.item()
 
 
             if config.showSegmentationProgress and i == 0: # If first batch in epoch
                 util.save_progress_image(autoencoder, progress_images, epoch)
                 optimizer.zero_grad() # Don't change gradient on validation
 
-        epoch_loss = running_loss / len(train_dataloader.dataset)
-        print(f"Epoch {epoch} loss: {epoch_loss:.6f}")
+        # epoch_loss = running_loss / len(train_dataloader.dataset)
+        # print(f"Epoch {epoch} loss: {epoch_loss:.6f}")
+
+
 
         if config.saveModel:
             util.save_model(autoencoder, modelName)

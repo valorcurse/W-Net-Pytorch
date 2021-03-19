@@ -76,16 +76,24 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, rad
     intensity_weight = torch.exp(-1*torch.mul(d, d))
 
     xx, yy = torch.meshgrid(torch.arange(rows, dtype=torch.float), torch.arange(cols, dtype=torch.float))
-    xx = xx.reshape(rows*cols)
-    yy = yy.reshape(rows*cols)
-    if torch.cuda.is_available():
-        xx = xx.cuda()
-        yy = yy.cuda()
-    ones_xx = torch.ones_like(xx, dtype=torch.float)
-    ones_yy = torch.ones_like(yy, dtype=torch.float)
-    if torch.cuda.is_available():
-        ones_yy = ones_yy.cuda()
-        ones_xx = ones_xx.cuda()
+    xx = xx.reshape(rows*cols).cuda()
+    yy = yy.reshape(rows*cols).cuda()
+    # if torch.cuda.is_available():
+    #     xx = xx.cuda()
+    #     yy = yy.cuda()
+    cuda_available = torch.cuda.is_available()
+    # xx = torch.where(cuda_available, xx.cuda(), xx)
+    # yy = torch.where(cuda_available, yy.cuda(), yy)
+
+    ones_xx = torch.ones_like(xx, dtype=torch.float).cuda()
+    ones_yy = torch.ones_like(yy, dtype=torch.float).cuda()
+    # if torch.cuda.is_available():
+    #     ones_yy = ones_yy.cuda()
+    #     ones_xx = ones_xx.cuda()
+
+    # ones_yy = torch.where(cuda_available, ones_yy.cuda(), ones_yy)
+    # ones_xx = torch.where(cuda_available, ones_xx.cuda(), ones_xx)
+
     A_x = outer_product(xx, ones_xx)
     A_y = outer_product(yy, ones_yy)
 
