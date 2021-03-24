@@ -162,6 +162,9 @@ def main():
             # l_reconstruction.backward()
             optimizer.step()
 
+            del loss
+            torch.cuda.empty_cache()
+
             # if config.debug and (i%50) == 0:
             #     print(i)
 

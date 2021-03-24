@@ -63,11 +63,12 @@ def soft_n_cut_loss_(flatten_image, prob, k, rows, cols):
     #     soft_n_cut_loss -= (numerator(prob[t,:,], weights) / denominator(prob[t,:,:], weights))
 
 
-    flat_prob = prob.reshape((prob.shape[0], prob.shape[1]*prob.shape[-3]))
+    flat_prob = prob.reshape((prob.shape[0], prob.shape[1], prob.shape[2]*prob.shape[3]))
 
     # Numerator
-    outer = flat_prob.unsqueeze(2) * flat_prob.unsqueeze(1)
-    a = torch.mul(weights, outer)
+    outer = flat_prob.unsqueeze(3) * flat_prob.unsqueeze(2)
+    # a = torch.mul(weights, outer)
+    a = weights.unsqueeze(1) * outer
     nom = torch.sum(a)
 
     del outer, a
@@ -75,8 +76,8 @@ def soft_n_cut_loss_(flatten_image, prob, k, rows, cols):
 
     # Denominator
     # k_class_prob = k_class_prob.view(-1)
-    denom = torch.sum( torch.mul(weights, flat_prob.unsqueeze(1) * torch.ones_like(flat_prob).unsqueeze(2)))
-
+    # denom = torch.sum( torch.mul(weights, flat_prob.unsqueeze(1) * torch.ones_like(flat_prob).unsqueeze(2)))
+    denom = torch.sum(weights.unsqueeze(1) * (flat_prob.unsqueeze(2) * torch.ones_like(flat_prob).unsqueeze(3)))
     del weights
 
     new_loss = soft_n_cut_loss - (nom / denom)
