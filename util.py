@@ -6,6 +6,13 @@ import matplotlib.pyplot as plt
 
 config = Config()
 
+import torch.nn as nn
+from crfseg import CRF
+# crf = nn.Sequential(
+#     CRF(n_spatial_dims=1)
+# )
+# crf.cuda()
+
 # Clear progress images directory
 def clear_progress_dir(): # Or make the dir if it does not exist
     if not os.path.isdir(config.segmentationProgressDir):
@@ -45,8 +52,10 @@ def save_progress_image(autoencoder, progress_images, epoch):
     f, axes = plt.subplots(4, config.val_batch_size, figsize=(8,8))
     for i in range(config.val_batch_size):
         segmentation = segmentations[i]
+        # segmentation = crf(segmentations[i])
         pixels = torch.argmax(segmentation, axis=0).float() / config.k # to [0,1]
 
+        # crfed = crf(segmentations)
         axes[0, i].imshow(progress_images[i].permute(1, 2, 0))
         axes[1, i].imshow(pixels.detach().cpu())
         axes[2, i].imshow(reconstructions[i].detach().cpu().permute(1, 2, 0))

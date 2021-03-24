@@ -23,7 +23,7 @@ toPIL      = transforms.ToPILImage()
 # Transforms are specified in this file
 class EvaluationDataset(Dataset):
     def __init__(self, mode):
-        self.mode = mode # The "test" directory name
+        self.mode = mode # The "val" directory name
         self.data_path  = os.path.join(config.data_dir, mode)
         self.images_dir = os.path.join(self.data_path, 'images')
         self.seg_dir    = os.path.join(self.data_path, 'segmentations')

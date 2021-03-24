@@ -33,7 +33,7 @@ def main():
     # Image loading and preprocessing #
     ###################################
 
-    evaluation_dataset = EvaluationDataset("test")
+    evaluation_dataset = EvaluationDataset("val")
 
     evaluation_dataloader = torch.utils.data.DataLoader(evaluation_dataset,
         batch_size=config.test_batch_size, num_workers=4, shuffle=False)

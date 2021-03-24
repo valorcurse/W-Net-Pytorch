@@ -7,6 +7,7 @@ from torch.autograd import Function
 import time
 import numpy as np
 
+import torch.autograd.profiler as profiler
 from config import Config
 
 config = Config()
@@ -24,10 +25,22 @@ config = Config()
 def soft_n_cut_loss(inputs, segmentations):
     # We don't do n_cut_loss batch wise -- split it up and do it instance wise
     loss = 0
-    for i in range(inputs.shape[0]):
-        flatten_image = torch.mean(inputs[i], dim=0)
-        flatten_image = flatten_image.reshape(flatten_image.shape[0]**2)
-        loss += soft_n_cut_loss_(flatten_image, segmentations[i], config.k, config.input_size, config.input_size)
+
+    flat_images = torch.mean(inputs, dim=1)
+    flat_images.reshape(flat_images.shape[0], flat_images.shape[1]*flat_images.shape[2])
+    losses = soft_n_cut_loss_(flat_images, segmentations, config.k, config.input_size, config.input_size)
+    # for i in range(inputs.shape[0]):
+        # with profiler.profile(profile_memory=True, record_shapes=True) as prof:
+        # flatten_image = torch.mean(inputs[i], dim=0)
+        # flatten_image = flatten_image.reshape(flatten_image.shape[0]**2)
+        # loss += soft_n_cut_loss_(flatten_image, segmentations[i], config.k, config.input_size, config.input_size)
+            # local_loss = soft_n_cut_loss_(flatten_image, segmentations[i], config.k, config.input_size, config.input_size)
+            # local_loss.backwards()
+
+        # del flatten_image
+        # torch.cuda.empty_cache()
+        # print(prof)
+        # print("")
     loss = loss / inputs.shape[0]
     return loss
 
@@ -46,10 +59,32 @@ def soft_n_cut_loss_(flatten_image, prob, k, rows, cols):
     soft_n_cut_loss = k
     weights = edge_weights(flatten_image, rows,cols)
 
-    for t in range(k):
-        soft_n_cut_loss = soft_n_cut_loss - (numerator(prob[t,:,],weights)/denominator(prob[t,:,:],weights))
+    # for t in range(k):
+    #     soft_n_cut_loss -= (numerator(prob[t,:,], weights) / denominator(prob[t,:,:], weights))
 
-    return soft_n_cut_loss
+
+    flat_prob = prob.reshape((prob.shape[0], prob.shape[1]*prob.shape[-3]))
+
+    # Numerator
+    outer = flat_prob.unsqueeze(2) * flat_prob.unsqueeze(1)
+    a = torch.mul(weights, outer)
+    nom = torch.sum(a)
+
+    del outer, a
+    torch.cuda.empty_cache()
+
+    # Denominator
+    # k_class_prob = k_class_prob.view(-1)
+    denom = torch.sum( torch.mul(weights, flat_prob.unsqueeze(1) * torch.ones_like(flat_prob).unsqueeze(2)))
+
+    del weights
+
+    new_loss = soft_n_cut_loss - (nom / denom)
+
+    del nom, denom
+    torch.cuda.empty_cache()
+
+    return new_loss
 
 def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, radius=5):
     '''
@@ -66,14 +101,19 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, rad
     Used parameters :
     n : number of pixels
     '''
-    ones = torch.ones_like(flatten_image, dtype=torch.float)
-    if torch.cuda.is_available():
-        ones = ones.cuda()
+    ones = torch.ones_like(flatten_image[0], dtype=torch.float, device=torch.device('cuda:0')).reshape(96*96).unsqueeze(0)
+    # if torch.cuda.is_available():
+    #     ones = ones.cuda()
 
-    A = outer_product(flatten_image, ones)
-    A_T = torch.t(A)
-    d = torch.div((A - A_T), std_intensity)
+    A = flatten_image.reshape(flatten_image.shape[0], flatten_image.shape[1]*flatten_image.shape[2]).unsqueeze(2) * ones
+
+    # A = outer_product(flatten_image, ones)
+    # A_T = torch.t(A)
+    d = torch.div((A - A.permute((0, 2, 1))), std_intensity)
     intensity_weight = torch.exp(-1*torch.mul(d, d))
+
+    del A, d
+    torch.cuda.empty_cache()
 
     xx, yy = torch.meshgrid(torch.arange(rows, dtype=torch.float), torch.arange(cols, dtype=torch.float))
     xx = xx.reshape(rows*cols).cuda()
@@ -81,12 +121,12 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, rad
     # if torch.cuda.is_available():
     #     xx = xx.cuda()
     #     yy = yy.cuda()
-    cuda_available = torch.cuda.is_available()
+    # cuda_available = torch.cuda.is_available()
     # xx = torch.where(cuda_available, xx.cuda(), xx)
     # yy = torch.where(cuda_available, yy.cuda(), yy)
 
-    ones_xx = torch.ones_like(xx, dtype=torch.float).cuda()
-    ones_yy = torch.ones_like(yy, dtype=torch.float).cuda()
+    ones_xx = torch.ones_like(xx, dtype=torch.float, device=torch.device('cuda:0'))
+    ones_yy = torch.ones_like(yy, dtype=torch.float, device=torch.device('cuda:0'))
     # if torch.cuda.is_available():
     #     ones_yy = ones_yy.cuda()
     #     ones_xx = ones_xx.cuda()
@@ -95,16 +135,25 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, rad
     # ones_xx = torch.where(cuda_available, ones_xx.cuda(), ones_xx)
 
     A_x = outer_product(xx, ones_xx)
+    # A_x = xx * ones_xx
     A_y = outer_product(yy, ones_yy)
+    # A_y = yy.unqueeze(2) * ones_yy.unsqueeze(1)
 
     xi_xj = A_x - torch.t(A_x)
     yi_yj = A_y - torch.t(A_y)
 
-    sq_distance_matrix = torch.mul(xi_xj, xi_xj) + torch.mul(yi_yj, yi_yj)
+    del A_x, A_y, ones_xx, ones_yy
+    torch.cuda.empty_cache()
 
+    sq_distance_matrix = torch.mul(xi_xj, xi_xj) + torch.mul(yi_yj, yi_yj)
+    del xi_xj, yi_yj
+    torch.cuda.empty_cache()
     # Might have to consider casting as float32 instead of creating meshgrid as float32
 
     dist_weight = torch.exp(-torch.div(sq_distance_matrix,std_position**2))
+    del sq_distance_matrix
+    torch.cuda.empty_cache()
+
     weight = torch.mul(intensity_weight, dist_weight) # Element wise product
 
 
