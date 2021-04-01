@@ -68,7 +68,8 @@ def main():
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=4, shuffle=True, pin_memory=True)
     val_dataloader   = torch.utils.data.DataLoader(val_dataset,   batch_size=4, num_workers=4, shuffle=False, pin_memory=True)
 
-    util.clear_progress_dir()
+    if not args.load:
+        util.clear_progress_dir()
 
     ###################################
     #          Model Setup            #

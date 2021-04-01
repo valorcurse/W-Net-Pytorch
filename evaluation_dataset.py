@@ -6,6 +6,7 @@ import os
 import numpy as np
 import glob
 import time
+import scipy.io as sio
 
 from config import Config
 
@@ -36,7 +37,12 @@ class EvaluationDataset(Dataset):
         # Get the ith item of the dataset
         image_filepath, segmentation_filepath = self.image_list[i]
         image        = self.load_pil_image(image_filepath)
-        segmentation = self.load_segmentation(segmentation_filepath)
+        # if image_filepath.endswith('.mat'):
+        #     image_data = sio.loadmat(segmentation_filepath)
+        segmentation = sio.loadmat(segmentation_filepath)
+        # print(segmentation['groundTruth'][0][0][0][0]['Segmentation'])
+        segmentation = segmentation['groundTruth'][0][0][0][0]['Segmentation']
+        segmentation = segmentation.astype(np.int32)
 
         return toTensor(image), toTensor(segmentation)
 
@@ -45,7 +51,7 @@ class EvaluationDataset(Dataset):
         for file in os.listdir(self.images_dir):
             if file.endswith(file_ext):
                 image_path = os.path.join(self.images_dir, file)
-                seg_path   = os.path.join(self.seg_dir,    file.split('.')[0]+'.seg.npy')
+                seg_path = os.path.join(self.seg_dir, file.split('.')[0] + '.mat')
                 image_list.append((image_path, seg_path))
         return image_list
 
