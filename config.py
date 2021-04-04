@@ -1,14 +1,14 @@
 class Config():
     def __init__(self):
         self.debug = True
-        self.input_size = 64 # Side length of square image patch
-        self.batch_size = 10 # Batch size of patches Note: 11 gig gpu will max batch of 5
+        self.input_size = 224 # Side length of square image patch
+        self.batch_size = 5 # Batch size of patches Note: 11 gig gpu will max batch of 5
         self.val_batch_size = 4 # Number of images shown in progress
         self.test_batch_size = 1 # We only use the first part of the model here (forward_encoder), so it can be larger
         self.verbose_testing = False
 
-        self.k = 16 # Number of classes
-        self.num_epochs = 1000 #250 for real
+        self.k = 20 # Number of classes
+        self.num_epochs = 100000 # 250 for real
 
         # self.data_dir = "./datasets/BSDS300/" # Directory of images
         # self.data_dir = "./datasets/global-wheat-detection/" # Directory of images
@@ -24,7 +24,7 @@ class Config():
 
         # Each item in the following list specifies a module.
         # Each item is the number of input channels to the module.
-        # The number of output channels is 2x in the encoder, x/2 in the decoder.
+        # The number of output channels is 2x in thsigmoide encoder, x/2 in the decoder.
         self.encoderLayerSizes = [64, 128, 256]
         self.decoderLayerSizes = [512, 256]
 

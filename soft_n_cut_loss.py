@@ -1,10 +1,11 @@
 # Some methods in this file ported to Pytorch from https://github.com/Ashish77IITM/W-Net/
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from scipy.stats import norm
+from torch.autograd import Function
+import time
+import numpy as np
 
 from config import Config
 
@@ -23,26 +24,12 @@ config = Config()
 def soft_n_cut_loss(inputs, segmentations):
     # We don't do n_cut_loss batch wise -- split it up and do it instance wise
     loss = 0
-
-    flat_images = torch.mean(inputs, dim=1)
-    flat_images.reshape(flat_images.shape[0], flat_images.shape[1]*flat_images.shape[2])
-    losses = soft_n_cut_loss_(flat_images, segmentations, config.k, config.input_size, config.input_size)
-    return losses
-
-    # for i in range(inputs.shape[0]):
-        # with profiler.profile(profile_memory=True, record_shapes=True) as prof:
-        # flatten_image = torch.mean(inputs[i], dim=0)
-        # flatten_image = flatten_image.reshape(flatten_image.shape[0]**2)
-        # loss += soft_n_cut_loss_(flatten_image, segmentations[i], config.k, config.input_size, config.input_size)
-            # local_loss = soft_n_cut_loss_(flatten_image, segmentations[i], config.k, config.input_size, config.input_size)
-            # local_loss.backwards()
-
-        # del flatten_image
-        # torch.cuda.empty_cache()
-        # print(prof)
-        # print("")
-    # loss = loss / inputs.shape[0]
-    # return loss
+    for i in range(inputs.shape[0]):
+        flatten_image = torch.mean(inputs[i], dim=0)
+        flatten_image = flatten_image.reshape(flatten_image.shape[0]**2)
+        loss += soft_n_cut_loss_(flatten_image, segmentations[i], config.k, config.input_size, config.input_size)
+    loss = loss / inputs.shape[0]
+    return loss
 
 def soft_n_cut_loss_(flatten_image, prob, k, rows, cols):
     '''
@@ -57,27 +44,12 @@ def soft_n_cut_loss_(flatten_image, prob, k, rows, cols):
     '''
 
     soft_n_cut_loss = k
-    weights = edge_weights(flatten_image, rows,cols).unsqueeze(1)
+    weights = edge_weights(flatten_image, rows,cols)
 
-    flat_prob = prob.reshape((prob.shape[0], prob.shape[1], prob.shape[2]*prob.shape[3]))
+    for t in range(k):
+        soft_n_cut_loss = soft_n_cut_loss - (numerator(prob[t,:,],weights)/denominator(prob[t,:,:],weights))
 
-    # Numerator
-    outer = flat_prob.unsqueeze(3) * flat_prob.unsqueeze(2)
-    a = weights * outer
-    nom = torch.sum(a)
-
-    # del outer, a
-    # torch.cuda.empty_cache()
-
-    # Denominator
-    denom = torch.sum(weights * (flat_prob.unsqueeze(2) * torch.ones_like(flat_prob).unsqueeze(3)))
-    # del weights
-
-    new_loss = soft_n_cut_loss - (nom / denom)
-
-    # del nom, denom
-    # torch.cuda.empty_cache()
-    return new_loss
+    return soft_n_cut_loss
 
 def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, radius=5):
     '''
@@ -94,39 +66,37 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1, rad
     Used parameters :
     n : number of pixels
     '''
-    ones = torch.ones_like(flatten_image[0], dtype=torch.float, device=torch.device('cuda:0')).reshape(flatten_image[0].shape[0] * flatten_image[0].shape[1]).unsqueeze(0)
-    # if torch.cuda.is_available():
-    #     ones = ones.cuda()
+    ones = torch.ones_like(flatten_image, dtype=torch.float)
+    if torch.cuda.is_available():
+        ones = ones.cuda()
 
-    A = flatten_image.reshape(flatten_image.shape[0], flatten_image.shape[1]*flatten_image.shape[2]).unsqueeze(2) * ones
-
-    # A = outer_product(flatten_image, ones)
-    # A_T = torch.t(A)
-    d = torch.div((A - A.permute((0, 2, 1))), std_intensity)
+    A = outer_product(flatten_image, ones)
+    A_T = torch.t(A)
+    d = torch.div((A - A_T), std_intensity)
     intensity_weight = torch.exp(-1*torch.mul(d, d))
 
-    # del A, d
-    # torch.cuda.empty_cache()
-
     xx, yy = torch.meshgrid(torch.arange(rows, dtype=torch.float), torch.arange(cols, dtype=torch.float))
-    xx = xx.reshape(rows*cols).cuda()
-    yy = yy.reshape(rows*cols).cuda()
-
-    ones_xx = torch.ones_like(xx, dtype=torch.float, device=torch.device('cuda:0'))
-    ones_yy = torch.ones_like(yy, dtype=torch.float, device=torch.device('cuda:0'))
-
+    xx = xx.reshape(rows*cols)
+    yy = yy.reshape(rows*cols)
+    if torch.cuda.is_available():
+        xx = xx.cuda()
+        yy = yy.cuda()
+    ones_xx = torch.ones_like(xx, dtype=torch.float)
+    ones_yy = torch.ones_like(yy, dtype=torch.float)
+    if torch.cuda.is_available():
+        ones_yy = ones_yy.cuda()
+        ones_xx = ones_xx.cuda()
     A_x = outer_product(xx, ones_xx)
-    # A_x = xx * ones_xx
     A_y = outer_product(yy, ones_yy)
-    # A_y = yy.unqueeze(2) * ones_yy.unsqueeze(1)
 
     xi_xj = A_x - torch.t(A_x)
     yi_yj = A_y - torch.t(A_y)
 
     sq_distance_matrix = torch.mul(xi_xj, xi_xj) + torch.mul(yi_yj, yi_yj)
 
-    dist_weight = torch.exp(-torch.div(sq_distance_matrix,std_position**2))
+    # Might have to consider casting as float32 instead of creating meshgrid as float32
 
+    dist_weight = torch.exp(-torch.div(sq_distance_matrix,std_position**2))
     weight = torch.mul(intensity_weight, dist_weight) # Element wise product
 
 
@@ -174,59 +144,3 @@ def denominator(k_class_prob,weights):
                 )
             )
         )
-
-def gaussian_kernel(radius: int = 3, sigma: float = 4, device='cpu'):
-    x_2 = np.linspace(-radius, radius, 2*radius+1) ** 2
-    dist = np.sqrt(x_2.reshape(-1, 1) + x_2.reshape(1, -1)) / sigma
-    kernel = norm.pdf(dist) / norm.pdf(0)
-    kernel = torch.from_numpy(kernel.astype(np.float32))
-    kernel = kernel.view((1, 1, kernel.shape[0], kernel.shape[1]))
-
-    if device == 'cuda':
-        kernel = kernel.cuda()
-
-    return kernel
-
-class NCutLoss2D(nn.Module):
-    r"""Implementation of the continuous N-Cut loss, as in:
-    'W-Net: A Deep Model for Fully Unsupervised Image Segmentation', by Xia, Kulis (2017)"""
-
-    def __init__(self, radius: int = 4, sigma_1: float = 5, sigma_2: float = 1):
-        r"""
-        :param radius: Radius of the spatial interaction term
-        :param sigma_1: Standard deviation of the spatial Gaussian interaction
-        :param sigma_2: Standard deviation of the pixel value Gaussian interaction
-        """
-        super(NCutLoss2D, self).__init__()
-        self.radius = radius
-        self.sigma_1 = sigma_1  # Spatial standard deviation
-        self.sigma_2 = sigma_2  # Pixel value standard deviation
-
-    def forward(self, labels: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
-        r"""Computes the continuous N-Cut loss, given a set of class probabilities (labels) and raw images (inputs).
-        Small modifications have been made here for efficiency -- specifically, we compute the pixel-wise weights
-        relative to the class-wide average, rather than for every individual pixel.
-        :param labels: Predicted class probabilities
-        :param inputs: Raw images
-        :return: Continuous N-Cut loss
-        """
-        num_classes = labels.shape[1]
-        kernel = gaussian_kernel(radius=self.radius, sigma=self.sigma_1, device=labels.device.type)
-        loss = 0
-
-        for k in range(num_classes):
-            # Compute the average pixel value for this class, and the difference from each pixel
-            class_probs = labels[:, k].unsqueeze(1)
-            class_mean = torch.mean(inputs * class_probs, dim=(2, 3), keepdim=True) / \
-                torch.add(torch.mean(class_probs, dim=(2, 3), keepdim=True), 1e-5)
-            diff = (inputs - class_mean).pow(2).sum(dim=1).unsqueeze(1)
-
-            # Weight the loss by the difference from the class average.
-            weights = torch.exp(diff.pow(2).mul(-1 / self.sigma_2 ** 2))
-
-            # Compute N-cut loss, using the computed weights matrix, and a Gaussian spatial filter
-            numerator = torch.sum(class_probs * F.conv2d(class_probs * weights, kernel, padding=self.radius))
-            denominator = torch.sum(class_probs * F.conv2d(weights, kernel, padding=self.radius))
-            loss += nn.L1Loss()(numerator / torch.add(denominator, 1e-6), torch.zeros_like(numerator))
-
-        return num_classes - loss
