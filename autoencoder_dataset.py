@@ -11,8 +11,8 @@ from config import Config
 
 config = Config()
 
-file_ext = ".jpg"
-# file_ext = ".png"
+# file_ext = ".jpg"
+file_ext = ".png"
 
 randomCrop = transforms.RandomCrop(config.input_size)
 centerCrop = transforms.CenterCrop(config.input_size)
@@ -41,13 +41,8 @@ class AutoencoderDataset(Dataset):
         input = self.load_pil_image(filepath)
         input = self.transforms(input)
 
-        # input = resize(input)
-
         input = toPIL(input)
         output = input.copy()
-        # if self.mode == "train" and config.variationalTranslation > 0:
-        #     output = randomCrop(input)
-        # input = toTensor(centerCrop(input))
         input = toTensor(input)
         output = toTensor(output)
 

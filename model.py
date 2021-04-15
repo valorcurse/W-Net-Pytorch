@@ -35,24 +35,24 @@ class ConvModule(nn.Module):
         layers = [
             nn.Conv2d(input_dim, output_dim, 1), # Pointwise (1x1) through all channels
             nn.Conv2d(output_dim, output_dim, 3, padding=1, groups=output_dim), # Depthwise (3x3) through each channel
-            # nn.InstanceNorm2d(output_dim),
+            nn.InstanceNorm2d(output_dim),
             nn.BatchNorm2d(output_dim),
             nn.ReLU(),
             nn.Dropout(config.drop),
             nn.Conv2d(output_dim, output_dim, 1),
             nn.Conv2d(output_dim, output_dim, 3, padding=1, groups=output_dim),
-            # nn.InstanceNorm2d(output_dim),
+            nn.InstanceNorm2d(output_dim),
             nn.BatchNorm2d(output_dim),
             nn.ReLU(),
             nn.Dropout(config.drop),
         ]
 
-        # if not config.useInstanceNorm:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.InstanceNorm2d)]
-        # if not config.useBatchNorm:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.BatchNorm2d)]
-        # if not config.useDropout:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.Dropout)]
+        if not config.useInstanceNorm:
+            layers = [layer for layer in layers if not isinstance(layer, nn.InstanceNorm2d)]
+        if not config.useBatchNorm:
+            layers = [layer for layer in layers if not isinstance(layer, nn.BatchNorm2d)]
+        if not config.useDropout:
+            layers = [layer for layer in layers if not isinstance(layer, nn.Dropout)]
 
         self.module = nn.Sequential(*layers)
 
@@ -66,24 +66,24 @@ class BaseNet(nn.Module): # 1 U-net
 
         layers = [
             nn.Conv2d(input_channels, 64, 3, padding=1),
-            # nn.InstanceNorm2d(64),
+            nn.InstanceNorm2d(64),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Dropout(config.drop),
 
             nn.Conv2d(64, 64, 3, padding=1),
-            # nn.InstanceNorm2d(64),
+            nn.InstanceNorm2d(64),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Dropout(config.drop),
         ]
 
-        # if not config.useInstanceNorm:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.InstanceNorm2d)]
-        # if not config.useBatchNorm:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.BatchNorm2d)]
-        # if not config.useDropout:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.Dropout)]
+        if not config.useInstanceNorm:
+            layers = [layer for layer in layers if not isinstance(layer, nn.InstanceNorm2d)]
+        if not config.useBatchNorm:
+            layers = [layer for layer in layers if not isinstance(layer, nn.BatchNorm2d)]
+        if not config.useDropout:
+            layers = [layer for layer in layers if not isinstance(layer, nn.Dropout)]
 
         self.first_module = nn.Sequential(*layers)
 
@@ -102,13 +102,13 @@ class BaseNet(nn.Module): # 1 U-net
 
         layers = [
             nn.Conv2d(128+64, 64, 3, padding=1),
-            # nn.InstanceNorm2d(64),
+            nn.InstanceNorm2d(64),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Dropout(config.drop),
 
             nn.Conv2d(64, 64, 3, padding=1),
-            # nn.InstanceNorm2d(64),
+            nn.InstanceNorm2d(64),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Dropout(config.drop),
@@ -117,12 +117,12 @@ class BaseNet(nn.Module): # 1 U-net
             nn.ReLU(),
         ]
 
-        # if not config.useInstanceNorm:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.InstanceNorm2d)]
-        # if not config.useBatchNorm:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.BatchNorm2d)]
-        # if not config.useDropout:
-        #     layers = [layer for layer in layers if not isinstance(layer, nn.Dropout)]
+        if not config.useInstanceNorm:
+            layers = [layer for layer in layers if not isinstance(layer, nn.InstanceNorm2d)]
+        if not config.useBatchNorm:
+            layers = [layer for layer in layers if not isinstance(layer, nn.BatchNorm2d)]
+        if not config.useDropout:
+            layers = [layer for layer in layers if not isinstance(layer, nn.Dropout)]
 
         self.last_module = nn.Sequential(*layers)
 
@@ -165,8 +165,8 @@ class WNet(nn.Module):
 
     def forward_decoder(self, segmentations):
         x18 = self.U_decoder(segmentations)
-        reconstructions = self.sigmoid(x18)
-        return reconstructions
+        # reconstructions = self.sigmoid(x18)
+        return x18
 
     def forward(self, x): # x is (3 channels 224x224)
         segmentations = self.forward_encoder(x)

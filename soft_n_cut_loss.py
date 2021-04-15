@@ -191,7 +191,7 @@ class NCutLoss2D(nn.Module):
     r"""Implementation of the continuous N-Cut loss, as in:
     'W-Net: A Deep Model for Fully Unsupervised Image Segmentation', by Xia, Kulis (2017)"""
 
-    def __init__(self, radius: int = 4, sigma_1: float = 5, sigma_2: float = 1):
+    def __init__(self, radius: int = 5, sigma_1: float = 10, sigma_2: float = 4):
         r"""
         :param radius: Radius of the spatial interaction term
         :param sigma_1: Standard deviation of the spatial Gaussian interaction

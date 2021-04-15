@@ -44,7 +44,8 @@ def main():
 
     # We will only use .forward_encoder()
     if torch.cuda.is_available():
-        autoencoder = torch.load("./models/model")
+        # autoencoder = torch.load("./models/model")
+        autoencoder = torch.load("results/Correct-loss-2/2021-04-10_14_33_28_411982")
     else:
         autoencoder = torch.load("./models/model", map_location=torch.device('cpu'))
     util.enumerate_params([autoencoder])
