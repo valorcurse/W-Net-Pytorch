@@ -78,8 +78,8 @@ def main():
     if torch.cuda.is_available():
         autoencoder = autoencoder.cuda()
 
-    iteration = 107600
-    lr=0.003 / (iteration / 2000)
+    iteration = 0
+    lr=0.003
     optimizer = torch.optim.Adam(autoencoder.parameters(), lr=lr)
     # optimizer = torch.optim.SGD(autoencoder.parameters(), lr=lr, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.1)

@@ -77,15 +77,23 @@ def save_progress_images(autoencoder, progress_images, epoch):
     else:
         segmentations, reconstructions = autoencoder(progress_images.cuda())
 
-    f, axes = plt.subplots(3, config.val_batch_size, figsize=(64,64))
+    with torch.no_grad():
+        autoencoder.eval()
+        segmentations_eval, reconstructions_eval = autoencoder(progress_images.cuda())
+        autoencoder.train()
+
+    f, axes = plt.subplots(4, config.val_batch_size, figsize=(64,64))
     for i in range(config.val_batch_size):
         segmentation = segmentations[i]
+        segmentation_eval = segmentations_eval[i]
 
-        pixels = torch.argmax(segmentation[0], axis=0).float() / config.k # to [0,1]
+        pixels = torch.argmax(segmentation, axis=0).float() / config.k # to [0,1]
+        eval_pixels = torch.argmax(segmentation_eval, axis=0).float() / config.k # to [0,1]
 
-        axes[0, i].imshow(progress_images[0].permute(1, 2, 0))
+        axes[0, i].imshow(progress_images[i].permute(1, 2, 0))
         axes[1, i].imshow(pixels.detach().cpu())
-        axes[2, i].imshow(reconstructions[0].detach().cpu().permute(1, 2, 0))
+        axes[2, i].imshow(eval_pixels.detach().cpu())
+        axes[3, i].imshow(reconstructions[i].detach().cpu().permute(1, 2, 0))
 
     plt.savefig(os.path.join(config.segmentationProgressDir, str(epoch)+".png"))
     plt.close(f)

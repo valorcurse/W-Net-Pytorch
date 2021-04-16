@@ -12,8 +12,8 @@ class Config():
 
         # self.data_dir = "./datasets/BSDS300/" # Directory of images
         # self.data_dir = "./datasets/global-wheat-detection/" # Directory of images
-        self.data_dir = "./datasets/lmb/" # Directory of images
-        # self.data_dir = "./datasets/VOC2012/" # Directory of images
+        # self.data_dir = "./datasets/lmb/" # Directory of images
+        self.data_dir = "./datasets/VOC2012/" # Directory of images
 
         self.showdata = False # Debug the data augmentation by showing the data we're training on.
 
