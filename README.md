@@ -1,4 +1,4 @@
-# Note: This repository is a work in progress. The architecture is implemented, but the post-processing is not complete.
+# [See the wiki for a more extensive explanation](https://github.com/valorcurse/W-Net-Pytorch/wiki/W-Net-Reproduction)
 
 
 # W-Net: A Deep Model for Fully Unsupervised Image Segmentation - Implementation in Pytorch
